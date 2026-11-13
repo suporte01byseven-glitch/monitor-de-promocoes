@@ -1,5 +1,5 @@
 const VERSION = 'promocoes-pwa-v1';
-const APP_SHELL = ['/', '/manifest.webmanifest', '/icon.svg'];
+const APP_SHELL = ['/', '/manifest.webmanifest', '/icon.svg', '/pwa.js', '/auth-ui.js'];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(VERSION).then(cache => cache.addAll(APP_SHELL)));

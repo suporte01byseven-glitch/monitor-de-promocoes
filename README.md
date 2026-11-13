@@ -1,80 +1,59 @@
-# Monitor de Promoções 2.0
+﻿# Monitor de Promoções
 
-Aplicação local com interface web, backend Python, SQLite, agendamento automático, histórico de ofertas, alertas e exportação CSV. Não requer bibliotecas Python de terceiros.
+Aplicação web instalável (PWA) para acompanhar preços na Steam, CheapShark e feeds RSS, registrar ofertas e enviar alertas por e-mail, Telegram ou WhatsApp.
 
-## Requisitos
-- Windows 10/11, Linux ou macOS
-- Python 3.9 ou superior
-- Internet para consultar as fontes e enviar notificações
+## Arquitetura
 
-## Executar no Windows
-1. Extraia a pasta do ZIP.
-2. Instale Python 3, se necessário: https://www.python.org/downloads/ (marque **Add Python to PATH**).
-3. Execute `INICIAR_WINDOWS.bat`.
-4. Acesse http://127.0.0.1:8765 no navegador.
-5. Mantenha a janela do terminal aberta para o monitoramento automático continuar.
+- `web/`: interface responsiva, manifesto PWA, ícone, autenticação da interface e cache do app shell.
+- `api/router.js` e `lib/`: API serverless Node.js para a Vercel, autenticação por senha, pesquisa de ofertas, notificações e tarefas agendadas.
+- Neon Postgres guarda monitoramentos, ofertas e alertas. O esquema é criado automaticamente na primeira requisição.
+- `server.py`: modo local existente com SQLite; os dados locais não são transferidos automaticamente para o banco da Vercel.
 
-No Linux/macOS: `python3 server.py` e abra `http://127.0.0.1:8765`.
+## Publicar na Vercel
 
-## Fontes implementadas
-- **Steam:** pesquisa no catálogo e consulta preço regional BRL pelo serviço público da loja.
-- **CheapShark:** pesquisa ofertas de jogos; preços retornados em USD. O limite de preço em R$ não é aplicado a preços em USD, mas a regra de desconto percentual pode ser aplicada.
-- **RSS:** feeds RSS configurados em `config.json`. Para ser reconhecido como oferta, o título ou descrição precisa conter um preço explícito no formato `R$ 99,90` ou `BRL 99,90`. Não tenta adivinhar preços.
+1. Importe `suporte01byseven-glitch/monitor-de-promocoes` na Vercel.
+2. Configure o projeto como **Other**, com a raiz do repositório como Root Directory, sem Build Command e `web` como Output Directory.
+3. Em **Storage → Marketplace**, crie/conecte um banco Neon Postgres. A integração deve adicionar `DATABASE_URL` ao projeto.
+4. Em **Settings → Environment Variables**, configure em Production (e Preview, se necessário):
+   - `APP_PASSWORD`: senha forte com pelo menos 16 caracteres para o acesso ao painel.
+   - `SESSION_SECRET`: chave aleatória com pelo menos 32 caracteres.
+   - `CRON_SECRET`: segredo aleatório para autorizar as varreduras agendadas.
+5. Faça redeploy depois de conectar o banco e salvar as variáveis.
+6. Em **Settings → Domains**, copie o domínio de produção. No repositório GitHub, crie a variável de Actions `APP_URL` com esse domínio sem barra final e o secret de Actions `CRON_SECRET` com o mesmo valor configurado na Vercel.
+7. Acesse o domínio. A API cria as tabelas na primeira chamada; entre usando `APP_PASSWORD`.
 
-Epic Games, GOG, Nuuvem e Amazon não são anunciadas como conectadas por padrão: a disponibilidade e os termos de APIs variam. Podem ser integradas por feed RSS compatível ou por adaptador de API oficial. As chaves Amazon PA-API são reservadas no arquivo de configuração, mas o adaptador de assinatura PA-API não está implementado nesta entrega.
+A configuração `vercel.json` encaminha `/api/*` para uma função Node.js, define cabeçalhos da PWA e limita a duração da função a 60 segundos. A Vercel serve os arquivos estáticos de `web/` conforme o Output Directory selecionado no projeto.
 
-## Configurar notificações
-Edite `config.json` com um editor de texto e reinicie o servidor:
+## Varredura agendada
 
-### Telegram
-1. Crie um bot com `@BotFather` e copie o token para `telegram_bot_token`.
-2. Informe o chat ID em `telegram_chat_id` ou no campo Destino de cada monitoramento.
-3. Inicie uma conversa com o bot antes do primeiro envio.
+O workflow `.github/workflows/scan.yml` chama `/api/cron` a cada 15 minutos e também pode ser executado manualmente na aba **Actions**. Ele consulta até três monitoramentos vencidos por execução; as frequências de 15 minutos, hora, seis horas e diária são aplicadas pelo banco. Configure `APP_URL` e `CRON_SECRET` nas variáveis/secrets de Actions conforme acima. O agendamento do GitHub pode atrasar alguns minutos.
 
-### E-mail (SMTP)
-Preencha `smtp_host`, `smtp_port`, `smtp_user`, `smtp_password` e `smtp_from`. Para provedores que exigem TLS explícito, mantenha `smtp_starttls: true`. Use senha de aplicativo quando o provedor exigir.
+A senha da aplicação, chaves de sessão, conexão ao banco, tokens de notificação e credencial de cron nunca devem ser adicionados ao Git. `.env.example` é apenas um modelo sem valores secretos; `config.json` e arquivos `.env` ficam ignorados.
 
-### WhatsApp Business Cloud API
-Preencha `whatsapp_token`, `whatsapp_phone_number_id` e, se necessário, `whatsapp_api_version`. No campo Destino, informe o telefone no formato internacional, somente dígitos (ex.: 5511999999999). A conta, número, permissões e políticas de templates/janela de atendimento precisam estar configurados na Meta.
+## Variáveis opcionais
 
-### Feeds RSS
-Adicione objetos em `rss_feeds`, por exemplo:
+Copie os nomes de `.env.example` para as variáveis de ambiente da Vercel quando for habilitar canais:
 
-```json
-"rss_feeds": [
-  {"name": "Meu feed de ofertas", "url": "https://exemplo.com/ofertas/rss.xml"}
-]
-```
+- Telegram: `TELEGRAM_BOT_TOKEN` e `TELEGRAM_CHAT_ID` (o destino do monitoramento pode substituir o chat padrão).
+- E-mail: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` e `SMTP_STARTTLS`.
+- WhatsApp Business Cloud API: `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` e, opcionalmente, `WHATSAPP_API_VERSION`.
+- RSS: `RSS_FEEDS` como JSON array de objetos `{"name":"Ofertas","url":"https://site.exemplo/feed.xml"}`. Só feeds HTTPS são aceitos na versão hospedada.
 
-Use URLs de feeds que você tem autorização para consultar. A fonte RSS é consultada em cada varredura de itens que selecionaram RSS.
+Steam consulta preços regionais BRL. CheapShark retorna USD; os preços em USD não são comparados com o preço-alvo em reais. RSS só gera oferta quando título ou descrição inclui um preço explícito `R$ 99,90` ou `BRL 99,90`. Epic Games, GOG, Nuuvem e Amazon aparecem como fontes não conectadas até uma integração oficial ser configurada.
 
-## Funcionamento e regras
-- O agendador verifica itens ativos conforme a frequência configurada. A janela de execução do processo precisa permanecer aberta.
-- O banco SQLite fica em `data/monitor.db` e persiste itens, histórico e alertas após reinicialização.
-- Um alerta é criado quando o preço BRL fica abaixo do preço-alvo **ou** quando o desconto alcança o mínimo configurado.
-- A regra percentual é comparada ao desconto informado pela fonte; preços em moedas diferentes não são convertidos automaticamente.
-- Alertas repetidos com mesmo item, URL e preço no mesmo dia são deduplicados.
-- Os destinos de e-mail, Telegram e WhatsApp são configurados separadamente em cada monitoramento.
-- Remover um monitoramento também remove suas ofertas e alertas associados.
-- A pesquisa manual não gera dados sintéticos. Se a fonte falhar, o erro aparece no resultado da pesquisa e no terminal.
-- O histórico de ofertas é armazenado; alertas podem ser exportados em CSV.
+## API
 
-## Segurança e operação
-- Por padrão, o servidor escuta apenas em `127.0.0.1`, não expõe a aplicação à rede.
-- Não publique o servidor diretamente na internet. Para uso multiusuário, instale atrás de proxy HTTPS, autenticação e controles de acesso.
-- Proteja `config.json`: ele contém tokens e senhas em texto simples. Restrinja as permissões do arquivo e não compartilhe a pasta.
-- Os conectores externos dependem de disponibilidade, limites, região e termos de uso dos respectivos provedores.
-- Para parar o monitor, feche a janela do terminal (Ctrl+C).
+- `GET /api/health`: estado da conexão com o banco e da configuração de autenticação.
+- `/api/auth`: login e encerramento de sessão.
+- `/api/items`, `/api/alerts`, `/api/offers/{id}` e `/api/scan`: API usada pela interface, protegida por sessão.
+- `POST /api/cron`: varredura agendada, aceita somente `Authorization: Bearer <CRON_SECRET>`.
 
-## Verificação
-Execute `python -m py_compile server.py` para validar a sintaxe. A API de saúde fica em `http://127.0.0.1:8765/api/health`.
+## Modo local
 
-## PWA e deploy na Vercel
+O backend local continua sem dependências Python externas:
 
-A interface em `web/` inclui manifesto, ícone e service worker. Em HTTPS (incluindo a Vercel), o navegador pode instalar a aplicação e abrir o app shell offline. As respostas `/api/*` não são guardadas no cache.
+- Windows: execute `INICIAR_WINDOWS.bat`.
+- Linux/macOS: `python3 server.py`.
+- Abra `http://127.0.0.1:8765`.
 
-Para publicar a interface, importe este diretório como projeto na Vercel e configure `web` como **Output Directory** (sem build command). O `vercel.json` define os cabeçalhos do manifesto e do service worker.
-
-**Limitação do backend:** esta entrega ainda usa `server.py`, um servidor Python persistente com SQLite local. A Vercel não executa esse servidor como processo contínuo e o armazenamento local de funções serverless é efêmero. Portanto, o deploy descrito publica a PWA, mas as funções de monitoramento e API não funcionarão na Vercel por si só. Para produção, é necessário migrar a API para funções serverless e o banco para PostgreSQL gerenciado (por exemplo, Neon ou Vercel Postgres), além de configurar uma execução agendada para as varreduras. Até essa migração, mantenha o backend Python em um serviço persistente e configure um proxy `/api` para ele.
-
-O modo offline disponibiliza apenas os arquivos da interface; consulta de preços, histórico, alertas e notificações exigem conexão com a API.
+No modo local, notificações e feeds são configurados em `config.json` (parta de `config.example.json`). O banco fica em `data/monitor.db`. Esse banco SQLite é local e independente do Neon usado em produção.

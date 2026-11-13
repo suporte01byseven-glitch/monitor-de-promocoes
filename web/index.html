@@ -31,6 +31,7 @@ label{display:block;font-weight:600;font-size:12px;margin:10px 0 5px}input:not([
 <label for="frequency">Frequência</label><select id="frequency"><option>A cada 15 min</option><option selected>A cada hora</option><option>A cada 6 horas</option><option>Uma vez por dia</option></select>
 <div id="formError" class="error"></div><div class="actions"><button class="btn" type="submit">Salvar item</button><button class="btn secondary" type="reset">Limpar</button></div></form></section>
 <section class="panel"><div class="toolbar"><div class="tabs"><button id="tabItems" class="active">Monitorados (<span id="itemsCount">0</span>)</button><button id="tabAlerts">Alertas (<span id="alertsCount">0</span>)</button></div><div class="actions" style="margin:0"><button id="scan" class="btn secondary">Pesquisar agora</button><button id="export" class="btn secondary">Exportar CSV</button></div></div><div id="message" class="status"></div><div id="content"></div></section></main>
+<script src="/auth-ui.js"></script>
 <script>
 const $=id=>document.getElementById(id);let tab='items',items=[],alerts=[];
 async function api(path,opts={}){const r=await fetch(path,{headers:{'Content-Type':'application/json'},...opts});const d=await r.json();if(!r.ok)throw Error(d.error||'Falha na solicitação');return d}
@@ -43,5 +44,5 @@ $('content').addEventListener('click',async e=>{const t=e.target.closest('[data-
 $('tabItems').onclick=()=>{tab='items';$('tabItems').classList.add('active');$('tabAlerts').classList.remove('active');render()};$('tabAlerts').onclick=()=>{tab='alerts';$('tabAlerts').classList.add('active');$('tabItems').classList.remove('active');render()};
 $('scan').onclick=async()=>{const b=$('scan');b.disabled=true;b.textContent='Pesquisando...';$('message').textContent='Consultando fontes reais. Isso pode levar alguns segundos.';try{const r=await api('/api/scan',{method:'POST',body:'{}'});$('message').textContent=r.results.map(x=>`${x.item}: ${x.offers_found} oferta(s), ${x.alerts_created} alerta(s)${x.errors.length?' · '+x.errors.join(' | '):''}`).join(' | ')||'Nenhum item ativo.';await load()}catch(e){$('message').textContent=e.message}finally{b.disabled=false;b.textContent='Pesquisar agora'}};
 $('export').onclick=async()=>{try{const data=await api('/api/alerts');const cols=['name','store','currency','price','discount','url','created_at'];const csv=[cols.join(';'),...data.map(x=>cols.map(k=>'"'+String(x[k]??'').replace(/"/g,'""')+'"').join(';'))].join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));a.download='alertas-promocoes.csv';a.click();URL.revokeObjectURL(a.href)}catch(e){$('message').textContent=e.message}};
-load();setInterval(load,30000);
+window.addEventListener('promotions:auth',load);load();setInterval(load,30000);
 </script></body></html>

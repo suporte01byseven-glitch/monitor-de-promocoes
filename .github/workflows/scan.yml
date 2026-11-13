@@ -1,0 +1,31 @@
+name: Scan due promotion monitors
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: promotion-scan
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Scan due items
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$APP_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "Configure the APP_URL repository variable and CRON_SECRET repository secret."
+            exit 1
+          fi
+          curl --silent --show-error --fail-with-body --retry 2 --retry-all-errors \
+            --connect-timeout 10 --max-time 55 \
+            --request POST "$APP_URL/api/cron" \
+            --header "Authorization: Bearer $CRON_SECRET"

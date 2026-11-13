@@ -4,4 +4,5 @@ data/*.db
 config.json
 .env
 .env.*
+!.env.example
 .vercel

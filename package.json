@@ -1,0 +1,10 @@
+{
+  "name": "monitor-de-promocoes",
+  "private": true,
+  "type": "module",
+  "engines": { "node": "22.x" },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.0.2",
+    "nodemailer": "^7.0.3"
+  }
+}
