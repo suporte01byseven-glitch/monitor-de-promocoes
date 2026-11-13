@@ -1,0 +1,21 @@
+{
+  "host": "127.0.0.1",
+  "port": 8765,
+  "scan_interval_seconds": 60,
+  "telegram_bot_token": "",
+  "telegram_chat_id": "",
+  "smtp_host": "",
+  "smtp_port": 587,
+  "smtp_user": "",
+  "smtp_password": "",
+  "smtp_from": "",
+  "smtp_starttls": true,
+  "whatsapp_token": "",
+  "whatsapp_phone_number_id": "",
+  "whatsapp_api_version": "v23.0",
+  "amazon_paapi_access_key": "",
+  "amazon_paapi_secret_key": "",
+  "amazon_paapi_partner_tag": "",
+  "amazon_paapi_marketplace": "www.amazon.com.br",
+  "rss_feeds": []
+}

@@ -1,0 +1,16 @@
+{
+  "id": "/",
+  "name": "Monitor de Promo\u00e7\u00f5es",
+  "short_name": "Promo\u00e7\u00f5es",
+  "description": "Acompanhe pre\u00e7os e receba alertas de promo\u00e7\u00f5es.",
+  "lang": "pt-BR",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0f1815",
+  "theme_color": "#0f1815",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
